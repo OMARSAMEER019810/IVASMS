@@ -1,0 +1,51 @@
+{
+  "name": "ivasms-telegram-bot",
+  "description": "IVASMS OTP forwarder to Telegram using cookies in ENV",
+  "repository": "https://github.com/yourusername/ivasms-telegram-bot",
+  "keywords": ["telegram", "otp", "sms", "ivasms", "bot"],
+  "stack": "heroku-22",
+  "buildpacks": [
+    {
+      "url": "heroku/python"
+    }
+  ],
+  "env": {
+    "YOUR_BOT_TOKEN": {
+      "description": "Telegram bot token from @BotFather",
+      "required": true
+    },
+    "ADMIN_CHAT_IDS": {
+      "description": "Comma separated Telegram user IDs of bot admins",
+      "required": true
+    },
+    "COOKIES_NT": {
+      "description": "Netscape cookie file content exported from browser (multiline)",
+      "required": true
+    },
+    "MONGO_URI": {
+      "description": "MongoDB connection URI (optional, leave empty for JSON fallback)",
+      "required": false
+    },
+    "DB_NAME": {
+      "description": "MongoDB database name",
+      "value": "ivasms_bot"
+    },
+    "COLLECTION_NAME": {
+      "description": "MongoDB collection name",
+      "value": "processed_sms"
+    },
+    "POLLING_INTERVAL_SECONDS": {
+      "description": "Polling interval in seconds",
+      "value": "5"
+    }
+  },
+  "scripts": {
+    "postdeploy": "echo 'Bot deployed. Make sure YOUR_BOT_TOKEN and COOKIES_NT are set!'"
+  },
+  "formation": {
+    "worker": {
+      "quantity": 1,
+      "size": "Basic"
+    }
+  }
+}
