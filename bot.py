@@ -36,10 +36,10 @@ numbers_ranges_ref = db.reference('numbers_ranges')
 seen_sms_ref = db.reference('seen_sms')
 
 # Telegram bot setup
-BOT_TOKEN = "8362712826:AAFF5R1h0NuKJVEI8Qc9fhr5W2R4Lqji6-0"
-CHAT_ID = "-1003053441379"
-ADMIN_CHAT_ID = "-1003053441379"
-ADMIN_USER_IDS = [6524840104]
+BOT_TOKEN = "8565825427:AAH0As4VbyWAS4zLMorAXp1nufk-xkc1NCw"
+CHAT_ID = "-1002247306023"
+ADMIN_CHAT_ID = "-1002247306023"
+ADMIN_USER_IDS = [6743860455]
 ADMINS_FILE = "admins.json"
 bot = telegram.Bot(token=BOT_TOKEN)
 
@@ -48,8 +48,8 @@ LOGIN_URL = "https://www.ivasms.com/login"
 SMS_LIST_URL = "https://www.ivasms.com/portal/sms/received/getsms/number"
 SMS_DETAILS_URL = "https://www.ivasms.com/portal/sms/received/getsms/number/sms"
 RETURN_ALL_URL = "https://www.ivasms.com/portal/numbers/return/allnumber/bluck"
-EMAIL = "tawandamahachi07@gmail.com"
-PASSWORD = "mahachi2007"
+EMAIL = "omar20049090@gmail.com"
+PASSWORD = "@omar7134sameer"
 
 # SMS headers
 SMS_HEADERS = {
