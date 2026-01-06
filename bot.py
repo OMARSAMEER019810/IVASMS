@@ -27,19 +27,47 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Firebase setup
-cred = credentials.Certificate("smsotp-f8aa7-firebase-adminsdk-fbsvc-edf7c62e28.json")
-firebase_admin.initialize_app(cred, {
-    'databaseURL': 'https://smsotp-f8aa7-default-rtdb.firebaseio.com'
-})
-numbers_ranges_ref = db.reference('numbers_ranges')
-seen_sms_ref = db.reference('seen_sms')
+# قراءة بيانات Firebase من متغير بيئي أو ملف
+import os
+import json
 
-# Telegram bot setup
-BOT_TOKEN = "8565825427:AAH0As4VbyWAS4zLMorAXp1nufk-xkc1NCw"
-CHAT_ID = "-1002247306023"
-ADMIN_CHAT_ID = "-1002247306023"
-ADMIN_USER_IDS = [6743860455]
+firebase_cred_json = os.environ.get('FIREBASE_CREDENTIALS')
+if firebase_cred_json:
+    # قراءة من متغير بيئي (لـ Render)
+    cred_dict = json.loads(firebase_cred_json)
+    cred = credentials.Certificate(cred_dict)
+    logger.info("Loaded Firebase credentials from environment variable")
+else:
+    # قراءة من ملف (للتطوير المحلي)
+    try:
+        cred = credentials.Certificate("smsotp-f8aa7-firebase-adminsdk-fbsvc-edf7c62e28.json")
+        logger.info("Loaded Firebase credentials from file")
+    except:
+        logger.error("No Firebase credentials found")
+        cred = None
+
+if cred:
+    firebase_admin.initialize_app(cred, {
+        'databaseURL': 'https://smsotp-f8aa7-default-rtdb.firebaseio.com'
+    })
+    numbers_ranges_ref = db.reference('numbers_ranges')
+    seen_sms_ref = db.reference('seen_sms')
+else:
+    numbers_ranges_ref = None
+    seen_sms_ref = None
+
+# قراءة المتغيرات البيئية
+BOT_TOKEN = os.environ.get('BOT_TOKEN', "8565825427:AAH0As4VbyWAS4zLMorAXp1nufk-xkc1NCw")
+CHAT_ID = os.environ.get('CHAT_ID', "-1002247306023")
+ADMIN_CHAT_ID = os.environ.get('ADMIN_CHAT_ID', "-1002247306023")
+
+# قراءة ADMIN_USER_IDS من متغير بيئي
+admin_ids_str = os.environ.get('ADMIN_USER_IDS', "[6743860455]")
+try:
+    ADMIN_USER_IDS = json.loads(admin_ids_str)
+except:
+    ADMIN_USER_IDS = [6743860455]
+
 ADMINS_FILE = "admins.json"
 bot = telegram.Bot(token=BOT_TOKEN)
 
@@ -48,8 +76,8 @@ LOGIN_URL = "https://www.ivasms.com/login"
 SMS_LIST_URL = "https://www.ivasms.com/portal/sms/received/getsms/number"
 SMS_DETAILS_URL = "https://www.ivasms.com/portal/sms/received/getsms/number/sms"
 RETURN_ALL_URL = "https://www.ivasms.com/portal/numbers/return/allnumber/bluck"
-EMAIL = "omar20049090@gmail.com"
-PASSWORD = "@omar7134sameer"
+EMAIL = os.environ.get('EMAIL', "omar20049090@gmail.com")
+PASSWORD = os.environ.get('PASSWORD', "@omar7134sameer")
 
 # SMS headers
 SMS_HEADERS = {
@@ -176,10 +204,10 @@ async def send_startup_alert(chat_id=CHAT_ID):
 
 def initialize_firebase_data():
     try:
-        if not numbers_ranges_ref.get():
+        if numbers_ranges_ref and not numbers_ranges_ref.get():
             numbers_ranges_ref.set({"ranges": []})
             logger.info("Initialized numbers_ranges in Firebase")
-        if not seen_sms_ref.get():
+        if seen_sms_ref and not seen_sms_ref.get():
             seen_sms_ref.set({"sms_ids": [], "last_updated": datetime.now().isoformat()})
             logger.info("Initialized seen_sms in Firebase")
     except Exception as e:
@@ -190,20 +218,27 @@ def load_seen_sms():
     global seen_sms
     initialize_firebase_data()
     try:
-        data = seen_sms_ref.get() or {"sms_ids": []}
-        seen_sms = set(data.get("sms_ids", []))
-        logger.info(f"Loaded {len(seen_sms)} SMS IDs from Firebase")
+        if seen_sms_ref:
+            data = seen_sms_ref.get() or {"sms_ids": []}
+            seen_sms = set(data.get("sms_ids", []))
+            logger.info(f"Loaded {len(seen_sms)} SMS IDs from Firebase")
+        else:
+            logger.warning("Firebase not initialized, using empty seen_sms")
+            seen_sms = set()
     except Exception as e:
         logger.error(f"Error loading seen_sms from Firebase: {str(e)}")
         seen_sms = set()
 
 def save_seen_sms():
     try:
-        seen_sms_ref.set({
-            "sms_ids": list(seen_sms),
-            "last_updated": datetime.now().isoformat()
-        })
-        logger.info("Saved SMS IDs to Firebase")
+        if seen_sms_ref:
+            seen_sms_ref.set({
+                "sms_ids": list(seen_sms),
+                "last_updated": datetime.now().isoformat()
+            })
+            logger.info("Saved SMS IDs to Firebase")
+        else:
+            logger.warning("Firebase not initialized, cannot save seen_sms")
     except Exception as e:
         error_msg = f"❌ Error saving seen_sms to Firebase: {str(e)}"
         logger.error(error_msg)
@@ -212,19 +247,23 @@ def save_seen_sms():
 def load_numbers_ranges():
     initialize_firebase_data()
     try:
-        data = numbers_ranges_ref.get() or {"ranges": []}
-        numbers = []
-        ranges = []
-        for range_item in data.get("ranges", []):
-            range_value = str(range_item.get("range", "")).strip()
-            range_numbers = range_item.get("numbers", [])
-            if range_value and range_value not in ranges:
-                ranges.append(range_value)
-            for num in range_numbers:
-                if num not in numbers:
-                    numbers.append(str(num))
-        logger.info(f"Loaded {len(numbers)} numbers and {len(ranges)} ranges from Firebase")
-        return numbers, ranges
+        if numbers_ranges_ref:
+            data = numbers_ranges_ref.get() or {"ranges": []}
+            numbers = []
+            ranges = []
+            for range_item in data.get("ranges", []):
+                range_value = str(range_item.get("range", "")).strip()
+                range_numbers = range_item.get("numbers", [])
+                if range_value and range_value not in ranges:
+                    ranges.append(range_value)
+                for num in range_numbers:
+                    if num not in numbers:
+                        numbers.append(str(num))
+            logger.info(f"Loaded {len(numbers)} numbers and {len(ranges)} ranges from Firebase")
+            return numbers, ranges
+        else:
+            logger.warning("Firebase not initialized, returning empty lists")
+            return [], []
     except Exception as e:
         error_msg = f"❌ Error loading from Firebase: {str(e)}"
         logger.error(error_msg)
@@ -233,6 +272,10 @@ def load_numbers_ranges():
 
 def save_numbers_ranges(ranges_data):
     try:
+        if not numbers_ranges_ref:
+            logger.error("Firebase not initialized, cannot save")
+            return
+            
         if not isinstance(ranges_data, list):
             logger.error(f"Invalid ranges_data type: {type(ranges_data)}")
             raise ValueError("ranges_data must be a list")
@@ -1078,7 +1121,6 @@ async def handle_bot_updates(update, session, csrf_token):
                 )
                 success = await sync_numbers_from_api(session, csrf_token, chat_id)
                 if not success:
-                    await bot.sendBackspace
                     await bot.send_message(
                         chat_id=chat_id,
                         text="❌ Synchronization failed! Check logs for details."
